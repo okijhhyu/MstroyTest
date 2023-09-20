@@ -1,42 +1,70 @@
-import { Delays, greeter } from '../src/main.js';
+import { TreeStore } from '../src/main.js'; // Путь к вашему классу TreeStore
 
-describe('greeter function', () => {
-  const name = 'John';
-  let hello: string;
+describe('TreeStore', () => {
+  let ts;
 
-  let timeoutSpy: jest.SpyInstance;
+  beforeEach(() => {
+    const items = [
+      { id: 1, parent: 'root' },
+      { id: 2, parent: 1, type: 'test' },
+      { id: 3, parent: 1, type: 'test' },
+      { id: 4, parent: 2, type: 'test' },
+      { id: 5, parent: 2, type: 'test' },
+      { id: 6, parent: 2, type: 'test' },
+      { id: 7, parent: 4, type: null },
+      { id: 8, parent: 4, type: null },
+    ];
 
-  // Act before assertions
-  beforeAll(async () => {
-    // Read more about fake timers
-    // http://facebook.github.io/jest/docs/en/timer-mocks.html#content
-    // Jest 27 now uses "modern" implementation of fake timers
-    // https://jestjs.io/blog/2021/05/25/jest-27#flipping-defaults
-    // https://github.com/facebook/jest/pull/5171
-    jest.useFakeTimers();
-    timeoutSpy = jest.spyOn(global, 'setTimeout');
-
-    const p: Promise<string> = greeter(name);
-    jest.runOnlyPendingTimers();
-    hello = await p;
+    ts = new TreeStore(items);
   });
 
-  // Teardown (cleanup) after assertions
-  afterAll(() => {
-    timeoutSpy.mockRestore();
+  test('getAll', () => {
+    const result = ts.getAll();
+    expect(result.length).toBe(8);
   });
 
-  // Assert if setTimeout was called properly
-  it('delays the greeting by 2 seconds', () => {
-    expect(setTimeout).toHaveBeenCalledTimes(1);
-    expect(setTimeout).toHaveBeenLastCalledWith(
-      expect.any(Function),
-      Delays.Long,
-    );
+  test('getItem', () => {
+    let item = ts.getItem(7);
+    expect(item).toBeDefined();
+    expect(item.id).toBe(7);
+
+    item = ts.getItem(32);
+    expect(item).toBeDefined();
+    expect(item).toBe(null);
   });
 
-  // Assert greeter result
-  it('greets a user with `Hello, {name}` message', () => {
-    expect(hello).toBe(`Hello, ${name}`);
+  test('getChildren', () => {
+    let children = ts.getChildren(4);
+    expect(children.length).toBe(2);
+
+    children = ts.getChildren(5);
+    expect(children.length).toBe(0);
+
+    children = ts.getChildren(2);
+    expect(children.length).toBe(3);
+
+    children = ts.getChildren(23);
+    expect(children.length).toBe(0);
+
+    children = ts.getChildren(1);
+    expect(children.length).toBe(2);
   });
+
+  test('getAllChildren', () => {
+    let children = ts.getAllChildren(2);
+    expect(children.length).toBe(5);
+
+    children = ts.getAllChildren(21);
+    expect(children.length).toBe(0);
+  });
+
+
+  test('getAllParents', () => {
+    let parent = ts.getAllParents(7);
+    expect(parent.length).toBe(3);
+
+    parent = ts.getAllParents(21);
+    expect(parent.length).toBe(0);
+  });
+
 });

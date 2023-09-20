@@ -1,34 +1,101 @@
-/**
- * Some predefined delay values (in milliseconds).
- */
-export enum Delays {
-  Short = 500,
-  Medium = 2000,
-  Long = 5000,
+interface Item {
+    id: number
+    parent: number | string
+    type?: string | null
+    childrens?: Item[]
 }
 
-/**
- * Returns a Promise<string> that resolves after a given time.
- *
- * @param {string} name - A name.
- * @param {number=} [delay=Delays.Medium] - A number of milliseconds to delay resolution of the Promise.
- * @returns {Promise<string>}
- */
-function delayedHello(
-  name: string,
-  delay: number = Delays.Medium,
-): Promise<string> {
-  return new Promise((resolve: (value?: string) => void) =>
-    setTimeout(() => resolve(`Hello, ${name}`), delay),
-  );
+export class TreeStore {
+  private items: Record<string | number, Item> = {};
+
+  constructor(data: Item[]) {
+    data.forEach((item) => {
+      const id = item.id;
+      if (!this.items[id]) {
+        this.items[id] = { ...item, childrens: [] };
+      } else {
+        this.items[id] = { ...this.items[id], ...item };
+      }
+      
+
+      const parentId = item.parent;
+      if (item.parent !== "root") {
+        if (!this.items[parentId]) {
+            this.items[parentId] = { childrens: [] } as Item;
+        }
+        this.items[parentId].childrens.push(this.items[id]);
+      }
+    });
+  }
+  
+  private pruneFields(item: Item): Item {
+    return { id: item.id, parent: item.parent, type: item.type };
+  }
+
+  getAll(): Item[] {
+    return Object.values(this.items).map((item) => {
+       return this.pruneFields(item)
+    });
+  }
+
+  getItem(id: number): Item | null {
+    return this.items[id] ? this.pruneFields(this.items[id]) : null;
+  }
+
+  getChildren(id: number): Item[] {
+    return this.items[id]?.childrens?.map((child: Item) => this.pruneFields(child)) || [];
+  }
+
+  getAllChildren(id: string | number): Item[] {
+    const result: Item[] = [];
+    const stack: (string | number)[] = [id];
+    for (let i = 0; i < stack.length; i++) {
+        const currentId = stack[i];
+        const children = this.items[currentId]?.childrens || [];
+
+        for (const child of children) {
+            result.push(this.pruneFields(child));
+            stack.push(child.id);
+        }
+    }
+    return result;
+  }
+
+  getAllParents(id: string | number): Item[] {
+    const result: Item[] = [];
+    let currentId = id;
+
+    while (currentId !== undefined) {
+      const parent = this.items[currentId]?.parent;
+      if (parent && parent !== 'root') {
+        result.push(this.pruneFields(this.items[parent]));
+        currentId = parent;
+      } else {
+        break;
+      }
+    }
+
+    return result;
+  }
 }
 
-// Please see the comment in the .eslintrc.json file about the suppressed rule!
-// Below is an example of how to use ESLint errors suppression. You can read more
-// at https://eslint.org/docs/latest/user-guide/configuring/rules#disabling-rules
+const items = [
+  { id: 1, parent: 'root' },
+  { id: 2, parent: 1, type: 'test' },
+  { id: 3, parent: 1, type: 'test' },
+  { id: 4, parent: 2, type: 'test' },
+  { id: 5, parent: 2, type: 'test' },
+  { id: 6, parent: 2, type: 'test' },
+  { id: 7, parent: 4, type: null },
+  { id: 8, parent: 4, type: null },
+];
 
-// eslint-disable-next-line @typescript-eslint/explicit-function-return-type
-export async function greeter(name: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
-  // The name parameter should be of type string. Any is used only to trigger the rule.
-  return await delayedHello(name, Delays.Long);
-}
+const ts = new TreeStore(items);
+
+console.log(ts.getAll());
+console.log(ts.getItem(7));
+console.log(ts.getChildren(4));
+console.log(ts.getChildren(5));
+console.log(ts.getChildren(2));
+console.log(ts.getAllChildren(2));
+console.log(ts.getAllParents(7));
